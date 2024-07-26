@@ -65,6 +65,15 @@ db.sqlite3-journal
 instance/
 .webassets-cache
 
+# Ignorar archivos ejecutables
+*.exe
+
+# Ignorar archivos de paquetes comprimidos o binarios
+*.zip
+
+#Ignorar archivos bat
+*.bat
+
 # Scrapy stuff:
 .scrapy
 

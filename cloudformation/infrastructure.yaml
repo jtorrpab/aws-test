@@ -1,0 +1,106 @@
+---
+AWSTemplateFormatVersion: "2010-09-09"
+Description: The Lambda function for creating a CloudFront Distribution
+
+Parameters:
+  PythonRuntime:
+    Description: Python version.
+    Type: String
+    Default: python3.11
+  S3Bucket:
+    Description: S3 Bucket Name.
+    Type: String
+    Default: my-bucket-lambda-cloudfront
+  S3Key:
+    Description: S3 Bucket Key.
+    Type: String
+    Default: lambda_function.zip
+  LayerBucket:
+    Description: S3 Bucket Name.
+    Type: String
+    Default: cloudfront-layers
+  LayerKey:
+    Description: S3 Bucket Key.
+    Type: String
+    Default: layer.zip
+
+Resources:
+
+##### CLOUDWATCH LOGS GROUP #####
+  CloudWatchLogsGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${LambdaFunction}"
+      Tags: 
+        -   Key: Name
+            Value: lambda-logs-group
+     
+##### ROLE #####
+  ExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Description: The role to execute the lambda function
+      RoleName: lambda-execution-role
+      MaxSessionDuration: 3600
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement: 
+          - Effect: "Allow"
+            Principal: 
+              Service: 
+                - "lambda.amazonaws.com"
+            Action: 
+              - "sts:AssumeRole"
+      Policies:
+        - PolicyName: LogsRegisterPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: 
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: '*'
+        - PolicyName: CloudFrontPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: cloudfront:*
+                Resource: '*'
+      Tags: 
+        -   Key: Name
+            Value: lambda-execution-role
+
+####### LAMBDA LAYER #########
+  LambdaFunctionLayer:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      CompatibleRuntimes:
+        - !Ref PythonRuntime
+      Content: 
+        S3Bucket: !Ref LayerBucket
+        S3Key: !Ref LayerKey
+
+##### LAMBDA FUNCTION #####
+  LambdaFunction:
+    Type: AWS::Lambda::Function
+    Description: Creating a CloudFront Distribution.
+    Properties:
+      FunctionName: lambda_create_cloudfront_distribution
+      Runtime: !Ref PythonRuntime
+      Role: !GetAtt [ ExecutionRole, Arn ]
+      MemorySize: 128
+      Timeout: 180
+      Handler: lambda_function.lambda_handler
+      Code:
+        S3Bucket: !Ref S3Bucket
+        S3Key: !Ref S3Key
+      Layers:
+        - !Ref LambdaFunctionLayer
+      Tags: 
+      -   Key: Name
+          Value: lambda_create_cloudfront_distribution
+
+    
